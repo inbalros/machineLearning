@@ -107,8 +107,6 @@ fit_and_prdict(X, y,'zoo')
 
 ## Bank Marketing Data Set #######
 bank = pd.read_csv('bank.csv', index_col=False, sep=';')
-# print(bank.columns)
-# print(bank.head())
 for col in bank.columns:
     if bank[col].dtype == object:
         bank[col] = bank[col].astype('category')
@@ -128,18 +126,19 @@ X = cars[["buying", "maint", "doors", "persons", "lug_boot", "safety"]]
 y = cars[["acceptability"]]
 fit_and_prdict(X,y,'cars')
 
-### poker hand ####
-poker = pd.read_csv('poker_hand_train.csv', names=["S1", "C1", "S2", "C2", "S3", "C3", "S4", "C4", "S5", "C5", 'class'])
-X = poker[["S1", "C1", "S2", "C2", "S3", "C3", "S4", "C4", "S5", "C5"]]
-y = poker[["class"]]
-# fit_and_prdict(X,y,'poker')
+### blood ####
+blood = pd.read_csv('blood.csv', names=["Recency", "Frequency", "Monetary", "Time",'target'])
+X = blood[["Recency", "Frequency", "Monetary", "Time"]]
+y = blood[["target"]]
+
+fit_and_prdict(X,y,'blood')
 
 
 ### glass ####
 glass = pd.read_csv('glass.csv', names=["Id", "RI", "Na", "Mg", "Al", "Si", "K", "Ca", "Ba", "Fe", 'type'])
 X = glass[["RI", "Na", "Mg", "Al", "Si", "K", "Ca", "Ba", "Fe"]]
 y = glass[["type"]]
-# fit_and_prdict(X,y,'glass')
+fit_and_prdict(X,y,'glass')
 
 for name, df in df_dic.items():
     df.to_excel(writer,sheet_name=name)
