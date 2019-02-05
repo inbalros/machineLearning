@@ -59,8 +59,17 @@ def inverse_presictions(labels,original_lables):
     counts = ((1/counts)/machane)
     return (pd.Series(choices(original_unique,counts,k=len(labels)))).values
 
-def generate_gant_data(R_size, data ,x_names,y_names,ensamble):
-    return data,data
+def generate_gant_data(R_size, data,x_names ,y_names,ensamble,ganPath):
+    allNames=x_names.copy()
+    allNames.append(y_names)
+    syn_data = pd.read_csv(ganPath,names=allNames)
+    indexes = np.random.randint(0,syn_data.shape[0],int(R_size*len(data)))
+    new_data = syn_data.iloc[indexes]
+    encode_categorial(new_data)
+    pred = predict_ensamble(ensamble, new_data[x_names])
+    new_data[y_names] = (inverse_presictions(pred, data[y_names]))
+    data = data.append(new_data, ignore_index=True)
+    return data
 
 def generate_random_data(R_size, data ,x_names,y_names,ensamble):
     colProp = {}
@@ -91,7 +100,7 @@ def encode_categorial(data):
             data[col] = data[col].cat.codes
             data[col] = data[col].astype('category')
 
-def Decorate(base_learn, data,x_names,y_names,ensamble_max_size, max_iteration, R_size,gant_flag=False):
+def Decorate(base_learn, data,x_names,y_names,ensamble_max_size, max_iteration, R_size,gant_flag=False,ganPath=None):
     original_data = data.copy()
     # original_lables = lables.copy()
     ensamble_size = 1
@@ -102,7 +111,7 @@ def Decorate(base_learn, data,x_names,y_names,ensamble_max_size, max_iteration, 
     ensamble_error = 1 - model.score(original_data[x_names],original_data[y_names])
     while ensamble_size < ensamble_max_size and trails < max_iteration:
         if gant_flag:
-            data = generate_gant_data(R_size, original_data ,x_names,y_names,ensamble)
+            data = generate_gant_data(R_size, original_data ,x_names,y_names,ensamble,ganPath)
         else:
             data = generate_random_data(R_size, original_data ,x_names,y_names,ensamble)
         model = base_learn.fit(data[x_names],data[y_names])
@@ -132,7 +141,7 @@ dfAllPredTree = pd.DataFrame(
         columns=['dataset_size', 'fit_time', 'pred_time', 'acc_on_test', 'acc_on_train', 'precision', 'recall','fscore'])
 
 
-def predict_decorate_kfold(name, size,data, x_names,y_names,decorateN,decorateG,tree,ensamble_max_size=5, max_iteration=10, R_size=0.1,paramK=10):
+def predict_decorate_kfold(name, size,data, x_names,y_names,decorateN,decorateG,tree,ensamble_max_size=5, max_iteration=10, R_size=0.1,paramK=10,gan_path=None):
     kfold = KFold(paramK, True)
     index = 0
     allPredDecorateN = 0
@@ -158,7 +167,7 @@ def predict_decorate_kfold(name, size,data, x_names,y_names,decorateN,decorateG,
         #decorate Gan
         if decorateG:
             start_time = time.time()
-            foldEnsamble = Decorate(DecisionTreeClassifier(max_depth=5), data.iloc[train], x_names, y_names,ensamble_max_size,max_iteration,R_size, gant_flag=True)
+            foldEnsamble = Decorate(DecisionTreeClassifier(max_depth=5), data.iloc[train], x_names, y_names,ensamble_max_size,max_iteration,R_size, gant_flag=True,ganPath=gan_path)
             end_time = time.time()
             fit_time = end_time - start_time
             start_time = time.time()
@@ -211,11 +220,20 @@ def write_to_excel(decorateN,decorateG,tree):
     writerResults.save()
 
 
-cars = pd.read_csv('../Assignment1/cars.csv', names=["buying", "maint", "doors", "persons", "lug_boot", "safety", "acceptability"])
-encode_categorial(cars)
-X_names =  ["buying", "maint", "doors", "persons", "lug_boot", "safety"]
-y_names = "acceptability"
+# cars = pd.read_csv('../Assignment1/cars.csv', names=["buying", "maint", "doors", "persons", "lug_boot", "safety", "acceptability"])
+# encode_categorial(cars)
+# X_names =  ["buying", "maint", "doors", "persons", "lug_boot", "safety"]
+# y_names = "acceptability"
+# predict_decorate_kfold("cars",cars.size,cars,X_names,y_names,True,False,True)
+# write_to_excel(True,False,True)
 
-predict_decorate_kfold("cars",cars.size,cars,X_names,y_names,True,False,True)
-write_to_excel(True,False,True)
+gan_path = r'C:\Users\USER\Documents\machineLearning\Assignment3\GanDataSampling\letter_recognition\syn_letter_recognition.csv'
+data_path = r'C:\Users\USER\Documents\machineLearning\Assignment3\GanDataSampling\letter_recognition\letter_recognition_data.csv'
+letters = pd.read_csv(data_path, names=["att"+str(i) for i in range(1,18)])
+X_names= ["att"+str(i) for i in range(1,17)]
+y_names = "att17"
+encode_categorial(letters)
+predict_decorate_kfold("letters",letters.size,letters,X_names,y_names,False,True,False,gan_path=gan_path)
+write_to_excel(False,True,False)
+
 
