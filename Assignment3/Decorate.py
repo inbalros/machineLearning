@@ -1,13 +1,8 @@
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.model_selection import train_test_split, KFold
 from sklearn import metrics
-from sklearn.datasets import load_iris
-import time
 import numpy as np
 import pandas as pd
 from random import choices
 from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import RandomForestClassifier
 
 ###########################################
 #  DECORATE algorithm                     #
@@ -75,7 +70,7 @@ def generate_random_data(R_size, data ,x_names,y_names,ensamble):
     colProp = {}
     for col in x_names:
         #categorial
-        if data[col].dtype =='category' :
+        if data[col].dtype !='float64'  and data[col].dtype !='int64'  and  data[col].dtype == 'category' :
             unique, counts = np.unique(data[col], return_counts=True)
             colProp[col] = (get_random_from_dist_cat,(unique,counts/len(data[col])))
         else:
@@ -125,115 +120,7 @@ def Decorate(base_learn, data,x_names,y_names,ensamble_max_size, max_iteration, 
         trails += 1
     return ensamble
 
-###########################################
-#  start to evaluate the algorithms       #
-#                                         #
-#                                         #
-#                                         #
-###########################################
-writerResults = pd.ExcelWriter('Decorator_results.xlsx')
-
-dfAllPredDecorateN= pd.DataFrame(
-        columns=['dataset_size', 'fit_time', 'pred_time', 'acc_on_test', 'acc_on_train', 'precision', 'recall','fscore'])
-dfAllPredDecorateG= pd.DataFrame(
-        columns=['dataset_size', 'fit_time', 'pred_time', 'acc_on_test', 'acc_on_train', 'precision', 'recall','fscore'])
-dfAllPredTree = pd.DataFrame(
-        columns=['dataset_size', 'fit_time', 'pred_time', 'acc_on_test', 'acc_on_train', 'precision', 'recall','fscore'])
 
 
-def predict_decorate_kfold(name, size,data, x_names,y_names,decorateN,decorateG,tree,ensamble_max_size=5, max_iteration=10, R_size=0.1,paramK=10,gan_path=None):
-    kfold = KFold(paramK, True)
-    index = 0
-    allPredDecorateN = 0
-    allPredDecorateG = 0
-    allPredTree = 0
-    for train, test in kfold.split(data):
-        index += 1
-        #decorate normal
-        if decorateN:
-            start_time = time.time()
-            foldEnsamble = Decorate(DecisionTreeClassifier(max_depth=5),data.iloc[train],x_names,y_names,ensamble_max_size,max_iteration,R_size,gant_flag = False)
-            end_time = time.time()
-            fit_time = end_time - start_time
-            start_time = time.time()
-            prediction = predict_ensamble(foldEnsamble,data.iloc[test][x_names]) #the predictions labels
-            end_time = time.time()
-            pred_time = end_time - start_time
-            predictionOnTrain = predict_ensamble(foldEnsamble,data.iloc[train][x_names]) #the predictions labels
-            acu_test = metrics.accuracy_score(pd.Series.tolist(data.iloc[test][y_names]), prediction)
-            acu_train = metrics.accuracy_score(pd.Series.tolist(data.iloc[train][y_names]), predictionOnTrain)
-            precision, recall, fscore, support = metrics.precision_recall_fscore_support(pd.Series.tolist(data.iloc[test][y_names]), prediction, average='macro')
-            allPredDecorateN += np.array(list((fit_time,pred_time,acu_test,acu_train,precision, recall, fscore)))
-        #decorate Gan
-        if decorateG:
-            start_time = time.time()
-            foldEnsamble = Decorate(DecisionTreeClassifier(max_depth=5), data.iloc[train], x_names, y_names,ensamble_max_size,max_iteration,R_size, gant_flag=True,ganPath=gan_path)
-            end_time = time.time()
-            fit_time = end_time - start_time
-            start_time = time.time()
-            prediction = predict_ensamble(foldEnsamble, data.iloc[test][x_names])  # the predictions labels
-            end_time = time.time()
-            pred_time = end_time - start_time
-            predictionOnTrain = predict_ensamble(foldEnsamble, data.iloc[train][x_names])  # the predictions labels
-            acu_test = metrics.accuracy_score(pd.Series.tolist(data.iloc[test][y_names]), prediction)
-            acu_train = metrics.accuracy_score(pd.Series.tolist(data.iloc[train][y_names]), predictionOnTrain)
-            precision, recall, fscore, support = metrics.precision_recall_fscore_support(
-                pd.Series.tolist(data.iloc[test][y_names]), prediction, average='macro')
-            allPredDecorateG += np.array(list((fit_time, pred_time, acu_test, acu_train, precision, recall, fscore)))
-        #normal decision tree
-        if tree:
-            start_time = time.time()
-            model = DecisionTreeClassifier(max_depth=5).fit(data.iloc[train][x_names], data.iloc[train][y_names])
-            end_time = time.time()
-            fit_time = end_time - start_time
-            start_time = time.time()
-            prediction = model.predict(data.iloc[test][x_names])  # the predictions labels
-            end_time = time.time()
-            pred_time = end_time - start_time
-            predictionOnTrain = model.predict(data.iloc[train][x_names])  # the predictions labels
-            acu_test = metrics.accuracy_score(pd.Series.tolist(data.iloc[test][y_names]), prediction)
-            acu_train = metrics.accuracy_score(pd.Series.tolist(data.iloc[train][y_names]), predictionOnTrain)
-            precision, recall, fscore, support = metrics.precision_recall_fscore_support(
-                pd.Series.tolist(data.iloc[test][y_names]), prediction, average='macro')
-            allPredTree += np.array(list((fit_time, pred_time, acu_test, acu_train, precision, recall, fscore)))
-
-    if decorateN:
-        allPredDecorateN /= index
-        allPredDecorateN = np.insert(allPredDecorateN, 0, size)
-        dfAllPredDecorateN.loc[name] = allPredDecorateN
-    if decorateG:
-        allPredDecorateG /= index
-        allPredDecorateG = np.insert(allPredDecorateG, 0, size)
-        dfAllPredDecorateG.loc[name] = allPredDecorateG
-    if tree:
-        allPredTree /= index
-        allPredTree = np.insert(allPredTree, 0, size)
-        dfAllPredTree.loc[name] = allPredTree
-
-def write_to_excel(decorateN,decorateG,tree):
-    if decorateN:
-        dfAllPredDecorateN.to_excel(writerResults,'DecorateNormal')
-    if decorateG:
-        dfAllPredDecorateG.to_excel(writerResults,'DecorateGan')
-    if tree:
-        dfAllPredTree.to_excel(writerResults,'DecisionTree')
-    writerResults.save()
-
-
-# cars = pd.read_csv('../Assignment1/cars.csv', names=["buying", "maint", "doors", "persons", "lug_boot", "safety", "acceptability"])
-# encode_categorial(cars)
-# X_names =  ["buying", "maint", "doors", "persons", "lug_boot", "safety"]
-# y_names = "acceptability"
-# predict_decorate_kfold("cars",cars.size,cars,X_names,y_names,True,False,True)
-# write_to_excel(True,False,True)
-
-gan_path = r'C:\Users\USER\Documents\machineLearning\Assignment3\GanDataSampling\letter_recognition\syn_letter_recognition.csv'
-data_path = r'C:\Users\USER\Documents\machineLearning\Assignment3\GanDataSampling\letter_recognition\letter_recognition_data.csv'
-letters = pd.read_csv(data_path, names=["att"+str(i) for i in range(1,18)])
-X_names= ["att"+str(i) for i in range(1,17)]
-y_names = "att17"
-encode_categorial(letters)
-predict_decorate_kfold("letters",letters.size,letters,X_names,y_names,False,True,False,gan_path=gan_path)
-write_to_excel(False,True,False)
 
 
