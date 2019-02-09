@@ -171,7 +171,7 @@ def Decorate(base_learn, data,x_names,y_names,ensemble_max_size, max_iteration, 
     :param R_size: the proportion of record to generate from the data
     :param gant_flag: flag if to use the gan method for synthetic records
     :param ganPath: if the flag is on, using this path to read the synthetic records
-    :return:
+    :return: the decorate ensemble
     """
     original_data = data.copy()
     ensemble_size = 1
